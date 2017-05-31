@@ -1,12 +1,10 @@
+# -*- coding: UTF-8 -*-
 import os,sys
 import cv2
 import numpy as np
 from math import *
 
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt # plt 用于显示图片
-import matplotlib.image as mpimg # mpimg 用于读取图片
+from utils import *
 
 WINDOW_WIDTH=int(200)
 WINDOW_HEIGHT=int(200)
@@ -28,6 +26,9 @@ def bi_filtering(img):
     t_img=np.float32(img)
     return cv2.bilateralFilter(t_img,9,75,75)
 
+def distortion(img):
+    return fake_image(img)
+
 
 class Image:
     def __init__(self,filename):
@@ -44,21 +45,16 @@ class Image:
         # self.filtering()
         target_size=self.image.shape
         print(target_size)
-        new_image=np.zeros(target_size)
+        new_image=np.zeros(target_size,dtype=np.uint8)
         print(new_image.shape)
         for i in range(ceil(target_size[0] / WINDOW_WIDTH)):
             for j in range(ceil(target_size[1]/WINDOW_HEIGHT)):
-                try:
-                    source=self.image[i*WINDOW_WIDTH:(i+1)*WINDOW_WIDTH,j*WINDOW_HEIGHT:(j+1)*WINDOW_HEIGHT]
-                    r1=self.restore_window(source)
-                    # display(source,r1)
-                    new_image[i*WINDOW_WIDTH:(i+1)*WINDOW_WIDTH,j*WINDOW_HEIGHT:(j+1)*WINDOW_HEIGHT]=r1[:,:]
-                except:
-                    print(source.shape)
-                    print(r1.shape)
-                # display(self.image,new_image)
+                source=self.image[i*WINDOW_WIDTH:(i+1)*WINDOW_WIDTH,j*WINDOW_HEIGHT:(j+1)*WINDOW_HEIGHT]
+                r1=self.restore_window(source)
+                # display(source,r1)
+                new_image[i*WINDOW_WIDTH:(i+1)*WINDOW_WIDTH,j*WINDOW_HEIGHT:(j+1)*WINDOW_HEIGHT,:]=r1[:,:,:]
 
-        display(self.image,new_image)
+        plot_diff(self.image,new_image)
         print ("restore! okay")
 
     def save_as(filename):
@@ -66,7 +62,8 @@ class Image:
 
     def restore_window(self,array):
         # result=np.zeros(shape=(WINDOW_WIDTH,WINDOW_HEIGHT),np.uint8)
-        result = bi_filtering(array)
+        # result = bi_filtering(array)
+        result=distortion(array)
         return result
 
 if __name__ == "__main__":

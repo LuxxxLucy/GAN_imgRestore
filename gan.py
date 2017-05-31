@@ -1,10 +1,5 @@
 #!/usr/bin/env python
-#
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt # plt 用于显示图片
-import matplotlib.image as mpimg # mpimg 用于读取图片
-from pprint import pprint as pr
+# -*- coding: UTF-8 -*-
 
 from random import sample
 import os,random
@@ -31,6 +26,8 @@ from keras.models import Model,model_from_json
 from keras.utils import np_utils
 from tqdm import tqdm
 
+WINDOW_WIDTH=int(32)
+WINDOW_HEIGHT=int(32)
 
 def build_generative_model():
     # Build Generative model ...
@@ -81,41 +78,6 @@ def make_trainable(net, val):
     for l in net.layers:
         l.trainable = val
 
-def plot_loss(losses):
-#        display.clear_output(wait=True)
-#        display.display(plt.gcf())
-    plt.figure(figsize=(10,8))
-    plt.plot(losses["d"], label='discriminitive loss')
-    plt.plot(losses["g"], label='generative loss')
-    plt.legend()
-    plt.show()
-
-def plot_gen(generator,n_ex=16,dim=(4,4), figsize=(10,10) ):
-    # show a generative image
-    noise = np.random.uniform(0,1,size=[n_ex,100])
-    data,noise = produce_data_bacth(4)
-    generated_images = generator.predict(noise)
-
-    plt.subplot(1,3,1),plt.imshow(data[0])#默认彩色，另一种彩色bgr
-    plt.subplot(1,3,2),plt.imshow(noise[0])
-    plt.subplot(1,3,3),plt.imshow(generated_images[0])
-    plt.show()
-    plt.savefig("./plot.png")
-
-
-def plot_real(n_ex=16,dim=(4,4), figsize=(10,10) ):
-
-    idx = np.random.randint(0,X_train.shape[0],n_ex)
-    generated_images = X_train[idx,:,:,:]
-
-    plt.figure(figsize=figsize)
-    for i in range(generated_images.shape[0]):
-        plt.subplot(dim[0],dim[1],i+1)
-        img = generated_images[i,0,:,:]
-        plt.imshow(img)
-        plt.axis('off')
-    plt.tight_layout()
-    plt.show()
 
 
 def train_for_n(generator,discriminator,GAN,nb_epoch=5000, plt_frq=25,BATCH_SIZE=32):
@@ -160,7 +122,7 @@ def train_for_n(generator,discriminator,GAN,nb_epoch=5000, plt_frq=25,BATCH_SIZE
         # noise_gen = np.random.uniform(0,1,size=[BATCH_SIZE,100])
         generated_images = generator.predict(noise_gen)
 
-        generator.fit(noise_gen,image_batch, nb_epoch=15, batch_size=128)
+        generator.fit(noise_gen,image_batch, epochs=15, batch_size=128)
 
         # Train discriminator on generated images
         X = np.concatenate((image_batch, generated_images))
@@ -188,7 +150,6 @@ def train_for_n(generator,discriminator,GAN,nb_epoch=5000, plt_frq=25,BATCH_SIZE
         if e%plt_frq==plt_frq-1:
             # plot_loss(losses)
             plot_gen()
-            # serialize model to JSON
         save_model(generator,discriminator,GAN)
 
 
@@ -244,69 +205,12 @@ def load_model():
 
     return generator,discriminator,GAN
 
-def plot_diff(i1,i2):
-    plt.subplot(1,2,1),plt.imshow(i1)#默认彩色，另一种彩色bgr
-    plt.subplot(1,2,2),plt.imshow(i2)
-    plt.show()
 
-def fake_image(img):
-    '''
-        add distortion to original image
-    '''
-    result=img.flatten()
-    try:
-        samples=np.random.choice(len(result),int(WINDOW_WIDTH*0.5)*int(WINDOW_HEIGHT*0.5),replace=True)
-    except:
-        pr(img)
-        pr(result)
-
-    for i in samples:
-        result[i]=np.random.random_integers(256)
-    result=np.reshape(result,(img.shape[0],img.shape[1],img.shape[2]))
-    return result
-
-def pad_to_window(img,shape1,shape2,value=0):
-    padded = value * np.ones(shape=(shape1,shape2,img.shape[2]), dtype=img.dtype)
-    padded[0:img.shape[0], 0:img.shape[1],:] = img
-    return padded
-
-def produce_data_bacth(batch_size=20):
-    dirs = os.listdir("./data/")
-    file_num=min(batch_size,len(dirs))
-    images_names= sample(dirs,file_num)
-    images= [ mpimg.imread("./data/"+temp) for temp in images_names ]
-    count=0
-    reals=[]
-    fakes=[]
-    for i in range(batch_size):
-        # randomly choose a image
-        j=np.random.random_integers(file_num-1)
-        # randomly choose a location
-        width=np.random.random_integers(int(images[j].shape[1]*0.8))
-        height=np.random.random_integers(int(images[j].shape[0]*0.8))
-
-        # get fake image
-        images_data=images[j][:,:,:3]
-        img=images_data[height:height+WINDOW_HEIGHT,width:width+WINDOW_WIDTH,:]
-        img_f=fake_image(img)
-
-        # paddding
-        img=pad_to_window(img,WINDOW_HEIGHT,WINDOW_WIDTH)
-        img_f=pad_to_window(img_f,WINDOW_HEIGHT,WINDOW_WIDTH)
-
-        # append to the list
-        reals.append(img)
-        fakes.append(img_f)
-
-    return (np.array(reals),np.array(fakes))
 
 
 if __name__ == "__main__":
 
     img_rows, img_cols = 28, 28
-
-    WINDOW_WIDTH=int(32)
-    WINDOW_HEIGHT=int(32)
 
     dropout_rate = 0.25
     opt = Adam(lr=1e-4)
@@ -320,7 +224,9 @@ if __name__ == "__main__":
     # generative image
     noise_gen=data_new[1]
     # noise_gen = np.random.uniform(0,1,size=[BATCH_SIZE,100])
-    generator.fit(image_batch,noise_gen,epochs=10)
+    generator.fit(noise_gen,image_batch,epochs=200)
+    save_model(generator,discriminator,GAN)
+    quit()
 
     make_trainable(discriminator,False)
     train_for_n(generator,discriminator,GAN,nb_epoch=10, plt_frq=500,BATCH_SIZE=32)
