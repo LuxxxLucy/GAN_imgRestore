@@ -14,13 +14,13 @@ mainly implement two approach.
 
 Using gaussian process regression.
 
-<div align="center"><img src="./result/donna.png" alt="">
+<div align="center"><img src="./result/donna.png">
 
-<img src="./result/donna_result.png" alt=""></div>
+<img src="./result/donna_result.png"></div>
 
 ## Approach 2
 
-Using a GAN method, the generative model structure is like the paper
+Using a GAN method, the generative model structure is like the paper **Can fully convolutional networks perform well for general image restoration problems?**. And the discriminitor is although a conv nn which judges if it is a generated iamge or a new image
 
 # REFERENCE
 
