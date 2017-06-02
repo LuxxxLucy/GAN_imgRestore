@@ -30,14 +30,11 @@ Using a GAN method, the generative model structure is like the paper **Can fully
 
 Not that the parameter tuning on GAN nn is rather hard. You will need to first train the discriminitor and the updates on discriminitor should also be slower(less epoches)
 
-<div align="center">
-  <span>
-  <img src="./result/carnev_gp.png">
-  <p></p>
-  <p><img src="./result/carnev_result.png"></p>
-</span>
-</div>
-
-<br><br>
+<div align="center"><img src="./result/carnev_gp.png">
+  <img src="./result/carnev_result.png"></div>
 
 As test and comparison, the left is the result of using a gaussian process regressor, and the right is the result of the generative network.(**note** : the GAN is not trained throughly, there is still potential improvement, the training can still go on)
+
+## reference
+
+[1] Gaussian process ![](https://en.wikipedia.org/wiki/Gaussian_process) [1] Can fully convolutional networks perform well for general image restoration problems.? ![](https://arxiv.org/pdf/1611.04481.pdf)
