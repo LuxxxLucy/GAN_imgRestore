@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-
+import argparse
 from random import sample
 import os,random
 import numpy as np
@@ -37,13 +37,27 @@ def build_generative_model():
     # Build Generative model ...
     nch = 3
     g_input = Input(shape=[WINDOW_HEIGHT,WINDOW_WIDTH,nch])
-    # H = Convolution2D(8, 3, 3, border_mode='same', init='zeros')(g_input)
-    # H = LeakyReLU(0.2)(H)
-    # H = Dropout(dropout_rate)(H)
-    H= Flatten()(g_input)
-    H = Dense(10,init='zeros',activation="sigmoid")(H)
-    H = Dense(nch*WINDOW_WIDTH*WINDOW_HEIGHT,init='zeros',activation="sigmoid")(H)
-    g_V = Reshape( (WINDOW_HEIGHT,WINDOW_WIDTH,nch) )(H)
+
+    H = Convolution2D(64, (3, 3), subsample=(1, 1), border_mode = 'same', activation='relu')(g_input)
+    H = LeakyReLU(0.2)(H)
+
+    H = Dropout(dropout_rate)(H)
+    H = Convolution2D(64, (3, 3), subsample=(1, 1), border_mode = 'same', activation='relu')(H)
+    H = LeakyReLU(0.2)(H)
+
+    H = Dropout(dropout_rate)(H)
+    H = Convolution2D(48, (3, 3), subsample=(1, 1), border_mode = 'same', activation='relu')(H)
+    H = LeakyReLU(0.2)(H)
+
+    H = Dropout(dropout_rate)(H)
+    H = Convolution2D(32, (5, 5), subsample=(1, 1), border_mode = 'same', activation='relu')(H)
+    H = LeakyReLU(0.2)(H)
+
+    H = Dropout(dropout_rate)(H)
+    H = Convolution2D(3, (5, 5), subsample=(1, 1), border_mode = 'same', activation='relu')(H)
+    g_V = LeakyReLU(0.2)(H)
+
+    # g_V = Reshape( (WINDOW_HEIGHT,WINDOW_WIDTH,nch) )(H)
     generator = Model(g_input,g_V)
     # generator.compile(loss='mean_squared_error', optimizer=opt)
     generator.compile(loss='binary_crossentropy', optimizer=opt)
@@ -172,10 +186,8 @@ def predict(generator):
             r1=r1[:previous_shape[0],:previous_shape[1],:]
             new_image[j*WINDOW_HEIGHT:(j+1)*WINDOW_HEIGHT,i*WINDOW_WIDTH:(i+1)*WINDOW_WIDTH,:]=r1[:,:,:]
 
-    print(new_image[0])
-    print(img[0])
     plot_diff(new_image,img)
-    quit()
+    new_image=new_image[:,:,::-1]*256
     cv2.imwrite("./data_test/3140102299_B.png",new_image)
 
 def save_model(generator,discriminator,GAN):
@@ -246,27 +258,11 @@ if __name__ == "__main__":
     opt = Adam(lr=1e-4)
     dopt = Adam(lr=1e-3)
 
-    # generator,discriminator,GAN=load_model()
-    # data_new=produce_data_bacth(200)
-    # image_batch=data_new[0]
-    # # image_batch = X_train[np.random.randint(0,X_train.shape[0],size=BATCH_SIZE),:,:,:]
-    # losses = {"d":[], "g":[]}
-    # # generative image
-    # noise_gen=data_new[1]
-    # # noise_gen = np.random.uniform(0,1,size=[BATCH_SIZE,100])
-    # generator.fit(noise_gen,image_batch,epochs=200)
-    # save_model(generator,discriminator,GAN)
-    # quit()
-
-    # make_trainable(discriminator,False)
-    # train_for_n(generator,discriminator,GAN,nb_epoch=10, plt_frq=500,BATCH_SIZE=32)
-    # quit()
-
     print("start building the gan")
     generator=build_generative_model()
+    quit()
     discriminator=build_discriminative_model()
     # Freeze weights in the discriminator for stacked training
-
 
     # Build stacked GAN model
     gan_input = Input(shape=[WINDOW_HEIGHT,WINDOW_WIDTH,3])
@@ -276,7 +272,7 @@ if __name__ == "__main__":
     GAN.compile(loss='categorical_crossentropy', optimizer=opt)
     GAN.summary()
 
-    pre_data=produce_data_bacth(200)
+    pre_data=produce_data_bacth(200000)
     X_train=pre_data[0]
 
     for i in range(200):
@@ -326,13 +322,3 @@ if __name__ == "__main__":
     opt.lr.set_value(1e-6)
     dopt.lr.set_value(1e-5)
     train_for_n(nb_epoch=200, plt_frq=500,BATCH_SIZE=32)
-
-    # Plot the final loss curves
-    # plot_loss(losses)
-
-    # Plot some generated images from our GAN
-    # plot_gen(25,(5,5),(12,12))
-
-
-    # Plot real MNIST images for comparison
-    # plot_real()

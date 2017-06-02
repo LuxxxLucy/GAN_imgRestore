@@ -6,14 +6,16 @@ from math import *
 
 from utils import *
 
-WINDOW_WIDTH=int(4)
-WINDOW_HEIGHT=int(4)
-
+WINDOW_WIDTH=int(32)
+WINDOW_HEIGHT=int(32)
 import numpy as np
-# from sklearn.naive_bayes import GaussianNB
 
+from sklearn import linear_model
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
 
 import matplotlib
 matplotlib.use('Agg')
@@ -93,8 +95,8 @@ class Image:
         new_image=np.zeros(target_size,dtype=np.float32)
         # new_image+=self.image
         print(new_image.shape)
-        for i in range(ceil(target_size[0] / WINDOW_WIDTH)):
-            for j in range(ceil(target_size[1]/WINDOW_HEIGHT)):
+        for i in range(  int(ceil(target_size[0] / WINDOW_WIDTH)+1)):
+            for j in range( int(ceil(target_size[1]/WINDOW_HEIGHT)+1)):
                 source=self.image[i*WINDOW_WIDTH:(i+1)*WINDOW_WIDTH,j*WINDOW_HEIGHT:(j+1)*WINDOW_HEIGHT]
                 previous_shape=source.shape
                 source=pad_to_window(source,WINDOW_HEIGHT,WINDOW_WIDTH)
@@ -102,10 +104,11 @@ class Image:
                 r1=restore_window_2(source)
                 r1=r1[:previous_shape[0],:previous_shape[1],:]
                 new_image[i*WINDOW_WIDTH:(i+1)*WINDOW_WIDTH,j*WINDOW_HEIGHT:(j+1)*WINDOW_HEIGHT,:]=r1[:,:,:]
+
                 plot_diff(new_image,self.image,name="plot_diff_whole")
 
         new_image=new_image[:,:,::-1]
-        cv2.imwrite("./data_test/3140102299_"+self.filename,new_image*256)
+        cv2.imwrite("./data_test/result_skl/3140102299_"+self.filename,new_image*256)
         print ("restore! okay")
 
     def save_as(filename):
@@ -136,7 +139,7 @@ def restore_window(array):
             channel[idx[0],idx[1],ch]=result[c]
         new_image[:,:,ch]=channel[:,:,ch]
     print("new window okay")
-    plot_diff(new_image,array)
+    # plot_diff(new_image,array)
 
     return new_image
 
@@ -144,36 +147,77 @@ def restore_window(array):
 def restore_window_2(array):
     new_image=np.zeros(shape=array.shape,dtype=np.float32)
     channel=np.zeros(shape=array.shape[:3],dtype=np.float32)
-    for ch in range(3):
-        channel[:,:,ch]+=array[:,:,ch]
-    X=[]
-    X_no=[]
-    Y=[]
-    for i ,_ in enumerate(channel):
-       for j,_ in enumerate(channel[i]):
-           for ch in range(3):
-               if(channel[i,j,ch]!=0):
-                   X.append([i,j,ch])
-                   Y.append(channel[i][j][ch])
-               else:
-                   X_no.append([i,j,ch])
-    X=np.array(X)
-    Y=np.array(Y)
-    kernel = C(1.0, (1e-3, 1e3)) * RBF(10, (1e-2, 1e2))
-    gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=9)
-    gp.fit(X, Y)
-    result=gp.predict(np.array(X_no))
+    try:
+        for ch in range(3):
+            channel[:,:,ch]+=array[:,:,ch]
+        X=[]
+        X_no=[]
+        Y=[]
+        for i ,_ in enumerate(channel):
+           for j,_ in enumerate(channel[i]):
+               for ch in range(3):
+                   if(channel[i,j,ch]!=0):
+                       X.append([i,j,ch])
+                       Y.append(channel[i][j][ch])
+                   else:
+                       X_no.append([i,j,ch])
+        X=np.array(X)
+        Y=np.array(Y)
+        kernel = C(1.0, (1e-3, 1e3)) * RBF(10, (1e-2, 1e2))
+        gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=9)
+        gp.fit(X, Y)
+        result=gp.predict(np.array(X_no))
 
 
-    for c,idx in enumerate(X_no):
-       channel[idx[0],idx[1],idx[2]]=result[c]
-    new_image[:,:,:]=channel[:,:,:]
-    print("new window okay")
-    plot_diff(new_image,array)
-
+        for c,idx in enumerate(X_no):
+           channel[idx[0],idx[1],idx[2]]=result[c]
+        new_image[:,:,:]=channel[:,:,:]
+        print("new window okay")
+        # plot_diff(new_image,array)
+        plot_diff(new_image,array)
+    except:
+        new_image=array
     return new_image
 
 
+def restore_window_3(array):
+    new_image=np.zeros(shape=array.shape,dtype=np.float32)
+    channel=np.zeros(shape=array.shape[:3],dtype=np.float32)
+    try:
+        for ch in range(3):
+            channel[:,:,ch]+=array[:,:,ch]
+        X=[]
+        X_no=[]
+        Y=[]
+        for i ,_ in enumerate(channel):
+           for j,_ in enumerate(channel[i]):
+               for ch in range(3):
+                   if(channel[i,j,ch]!=0):
+                       X.append([i,j,ch])
+                       Y.append(channel[i][j][ch])
+                   else:
+                       X_no.append([i,j,ch])
+        X=np.array(X)
+        Y=np.array(Y)
+        model = Pipeline([('poly', PolynomialFeatures(degree=3)),('linear', LinearRegression(fit_intercept=False))])
+        # x = np.arange(5)
+        # y = 3 - 2 * x + x ** 2 - x ** 3
+        reg = model.fit(X, Y)
+
+        # reg = linear_model.BayesianRidge()
+        # reg.fit(X, Y)
+
+        result=reg.predict(np.array(X_no))
+
+        for c,idx in enumerate(X_no):
+           channel[idx[0],idx[1],idx[2]]=result[c]
+        new_image[:,:,:]=channel[:,:,:]
+        print("new window okay")
+        # plot_diff(new_image,array)
+    except:
+        print("error")
+        new_image=array
+    return new_image
 
 if __name__ == "__main__":
     da,no=produce_data_bacth(20)
