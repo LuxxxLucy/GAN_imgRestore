@@ -26,6 +26,10 @@ from keras.models import Model,model_from_json
 from keras.utils import np_utils
 from tqdm import tqdm
 
+from utils import *
+from math import *
+import cv2
+
 WINDOW_WIDTH=int(32)
 WINDOW_HEIGHT=int(32)
 
@@ -33,27 +37,21 @@ def build_generative_model():
     # Build Generative model ...
     nch = 3
     g_input = Input(shape=[WINDOW_HEIGHT,WINDOW_WIDTH,nch])
-    H = Flatten()(g_input)
-    # H = UpSampling2D(size=(2, 2))(H)
-    # H = Convolution2D(int(nch/2), 3, 3, border_mode='same', init='glorot_uniform')(H)
-    # H = BatchNormalization(mode=2)(H)
-    # H = Activation('relu')(H)
-    # H = Convolution2D(int(nch/4), 3, 3, border_mode='same', init='glorot_uniform')(H)
-    # H = BatchNormalization(mode=2)(H)
-    # H = Activation('relu')(H)
-    # H = Convolution2D(1, 1, 1, border_mode='same', init='glorot_uniform')(H)
-    # H = Reshape( [ 1,28,28] )(H)
-    # g_V = Activation('sigmoid')(H)
-    H = Dense(nch*WINDOW_WIDTH*WINDOW_HEIGHT, kernel_initializer='glorot_uniform',activation="relu")(H)
-    H = Dense(nch*WINDOW_WIDTH*WINDOW_HEIGHT,activation="sigmoid")(H)
+    # H = Convolution2D(8, 3, 3, border_mode='same', init='zeros')(g_input)
+    # H = LeakyReLU(0.2)(H)
+    # H = Dropout(dropout_rate)(H)
+    H= Flatten()(g_input)
+    H = Dense(10,init='zeros',activation="sigmoid")(H)
+    H = Dense(nch*WINDOW_WIDTH*WINDOW_HEIGHT,init='zeros',activation="sigmoid")(H)
     g_V = Reshape( (WINDOW_HEIGHT,WINDOW_WIDTH,nch) )(H)
     generator = Model(g_input,g_V)
+    # generator.compile(loss='mean_squared_error', optimizer=opt)
     generator.compile(loss='binary_crossentropy', optimizer=opt)
     generator.summary()
 
     return generator
 
-def buil_discriminative_model():
+def build_discriminative_model():
     # Build Discriminative model ...
     d_input = Input(shape=[WINDOW_HEIGHT,WINDOW_WIDTH,3])
     H = Convolution2D(256, 5, 5, subsample=(2, 2), border_mode = 'same', activation='relu')(d_input)
@@ -98,8 +96,12 @@ def train_for_n(generator,discriminator,GAN,nb_epoch=5000, plt_frq=25,BATCH_SIZE
     y[:n,1] = 1
     y[n:,0] = 1
 
+    generator.fit(noise_gen,pre_data[0][:ntrain], epochs=15, batch_size=128)
+
     make_trainable(discriminator,True)
-    discriminator.fit(X,y, nb_epoch=15, batch_size=128)
+    for _ in range(0):
+        discriminator.fit(X,y, nb_epoch=1, batch_size=128)
+
     y_hat = discriminator.predict(X)
 
     # Measure accuracy of pre-trained discriminator network
@@ -150,8 +152,31 @@ def train_for_n(generator,discriminator,GAN,nb_epoch=5000, plt_frq=25,BATCH_SIZE
         if e%plt_frq==plt_frq-1:
             # plot_loss(losses)
             plot_gen()
+        plot_gen(generator)
         save_model(generator,discriminator,GAN)
 
+def predict(generator):
+    img=mpimg.imread("./data_test/B.png")
+    img=img[:,:,:3]
+    new_image=np.zeros(img.shape,dtype=np.float32)
+    print(new_image.shape)
+    for i in range(ceil(img.shape[0] / WINDOW_WIDTH)):
+        for j in range(ceil(img.shape[1]/WINDOW_HEIGHT)):
+            source=img[j*WINDOW_HEIGHT:(j+1)*WINDOW_HEIGHT,i*WINDOW_WIDTH:(i+1)*WINDOW_WIDTH]
+            previous_shape=source.shape
+            source=pad_to_window(source,WINDOW_HEIGHT,WINDOW_WIDTH)
+            source=np.array([source])
+            r1=generator.predict(source)
+            r1=r1[0]
+            # r1/=256
+            r1=r1[:previous_shape[0],:previous_shape[1],:]
+            new_image[j*WINDOW_HEIGHT:(j+1)*WINDOW_HEIGHT,i*WINDOW_WIDTH:(i+1)*WINDOW_WIDTH,:]=r1[:,:,:]
+
+    print(new_image[0])
+    print(img[0])
+    plot_diff(new_image,img)
+    quit()
+    cv2.imwrite("./data_test/3140102299_B.png",new_image)
 
 def save_model(generator,discriminator,GAN):
     model_json = generator.to_json()
@@ -174,7 +199,7 @@ def save_model(generator,discriminator,GAN):
 
 def load_model():
     dropout_rate = 0.25
-    opt = Adam(lr=1e-4)
+    opt = Adam(lr=1e-3)
     dopt = Adam(lr=1e-3)
 
     # load json and create model
@@ -184,7 +209,7 @@ def load_model():
     generator = model_from_json(loaded_model_json)
     # load weights into new model
     generator.load_weights("generator.h5")
-    generator.compile(loss='binary_crossentropy', optimizer=opt)
+    generator.compile(loss='mean_squared_error', optimizer=opt)
 
     # try:
     json_file = open('discriminator.json', 'r')
@@ -203,6 +228,11 @@ def load_model():
     GAN.load_weights("GAN.h5")
     GAN.compile(loss='categorical_crossentropy', optimizer=opt)
 
+
+    plot_gen(generator)
+    # predict(generator)
+
+
     return generator,discriminator,GAN
 
 
@@ -216,21 +246,21 @@ if __name__ == "__main__":
     opt = Adam(lr=1e-4)
     dopt = Adam(lr=1e-3)
 
-    generator,discriminator,GAN=load_model()
-    data_new=produce_data_bacth(20000)
-    image_batch=data_new[0]
-    # image_batch = X_train[np.random.randint(0,X_train.shape[0],size=BATCH_SIZE),:,:,:]
-    losses = {"d":[], "g":[]}
-    # generative image
-    noise_gen=data_new[1]
-    # noise_gen = np.random.uniform(0,1,size=[BATCH_SIZE,100])
-    generator.fit(noise_gen,image_batch,epochs=200)
-    save_model(generator,discriminator,GAN)
-    quit()
+    # generator,discriminator,GAN=load_model()
+    # data_new=produce_data_bacth(200)
+    # image_batch=data_new[0]
+    # # image_batch = X_train[np.random.randint(0,X_train.shape[0],size=BATCH_SIZE),:,:,:]
+    # losses = {"d":[], "g":[]}
+    # # generative image
+    # noise_gen=data_new[1]
+    # # noise_gen = np.random.uniform(0,1,size=[BATCH_SIZE,100])
+    # generator.fit(noise_gen,image_batch,epochs=200)
+    # save_model(generator,discriminator,GAN)
+    # quit()
 
-    make_trainable(discriminator,False)
-    train_for_n(generator,discriminator,GAN,nb_epoch=10, plt_frq=500,BATCH_SIZE=32)
-    quit()
+    # make_trainable(discriminator,False)
+    # train_for_n(generator,discriminator,GAN,nb_epoch=10, plt_frq=500,BATCH_SIZE=32)
+    # quit()
 
     print("start building the gan")
     generator=build_generative_model()
@@ -248,6 +278,11 @@ if __name__ == "__main__":
 
     pre_data=produce_data_bacth(200)
     X_train=pre_data[0]
+
+    for i in range(200):
+        generator.fit(pre_data[1],pre_data[0],epochs=1)
+        plot_gen(generator)
+        save_model(generator,discriminator,GAN)
 
     ntrain = 100
     trainidx = random.sample(range(0,X_train.shape[0]), ntrain)
