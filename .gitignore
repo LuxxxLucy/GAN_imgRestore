@@ -1,6 +1,3 @@
 __pycache__/
 data/
 data_test/
-*.json
-*.h5
-*.png
