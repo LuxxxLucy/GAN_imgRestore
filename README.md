@@ -37,4 +37,4 @@ As test and comparison, the left is the result of using a gaussian process regre
 
 ## reference
 
-[1] Gaussian process ![](https://en.wikipedia.org/wiki/Gaussian_process) [1] Can fully convolutional networks perform well for general image restoration problems.? ![](https://arxiv.org/pdf/1611.04481.pdf)
+[1] <a href="https://en.wikipedia.org/wiki/Gaussian_process">Gaussian process</a>  [2] <a href="https://arxiv.org/pdf/1611.04481.pdf">Can fully convolutional networks perform well for general image restoration problems.?</a>
